@@ -115,7 +115,7 @@ sudo kubeadm join <CONTROL_PLANE_IP>:6443 \
   --token <token> \
   --discovery-token-ca-cert-hash sha256:<hash>
 
-kubeadm join 10.191.130.198:6443 --token 6sz2tz.jdmnzgrpf9cr3yem --discovery-token-ca-cert-hash sha256:b36f08e50ec47fcb306c062eb71b258020c865b40219000337a08e6c0fe1fb96
+sudo kubeadm join 10.191.130.198:6443 --token 6sz2tz.jdmnzgrpf9cr3yem --discovery-token-ca-cert-hash sha256:b36f08e50ec47fcb306c062eb71b258020c865b40219000337a08e6c0fe1fb96
 
 # mgr smoke test
 kubectl get nodes

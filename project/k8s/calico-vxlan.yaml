@@ -12,7 +12,7 @@ spec:
       interface: "eno1"             # regex allowed, e.g. "en.*"
     mtu: 0                           # 0 = auto-detect; Calico adjusts for VXLAN overhead
     ipPools:
-    - cidr: 10.52.0.0/16
+    - cidr: 10.114.0.0/16
       encapsulation: VXLAN
       natOutgoing: Enabled
       blockSize: 26                  # /26 per-node blocks (good default)
