@@ -83,6 +83,7 @@ sudo firewall-cmd --add-port=30000-32767/tcp --permanent   # NodePort (optional)
 sudo firewall-cmd --add-port=4789/udp --permanent
 # Flannel VXLAN:
 sudo firewall-cmd --add-port=8472/udp --permanent
+sudo firewall-cmd --zone=public --change-interface=eno2np1 --permanent
 
 sudo firewall-cmd --reload
 sudo firewall-cmd --list-all-zones
@@ -90,7 +91,7 @@ sudo firewall-cmd --list-all-zones
 
 # On k8s-mgr
 sudo kubeadm init \
-  --pod-network-cidr=10.52.0.0/16 \
+  --pod-network-cidr=10.114.0.0/16 \
   --apiserver-advertise-address=$(hostname -I | awk '{print $1}')
 mkdir -p $HOME/.kube
 sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config
@@ -99,6 +100,42 @@ export KUBECONFIG=/etc/kubernetes/admin.conf
 
 # test
 kubectl get nodes
+
+kubectl -n calico-system patch deploy calico-kube-controllers --type='json' -p='[
+ {"op":"add","path":"/spec/template/spec/tolerations","value":[
+   {"key":"node-role.kubernetes.io/control-plane","effect":"NoSchedule"},
+   {"key":"node-role.kubernetes.io/master","effect":"NoSchedule"}
+ ]}
+]'
+kubectl -n calico-system patch deploy calico-typha --type='json' -p='[
+ {"op":"add","path":"/spec/template/spec/tolerations","value":[
+   {"key":"node-role.kubernetes.io/control-plane","effect":"NoSchedule"},
+   {"key":"node-role.kubernetes.io/master","effect":"NoSchedule"}
+ ]}
+]'
+
+# Replace kevin-intel-manager if your node name differs
+kubectl -n calico-system patch deploy calico-kube-controllers -p '{
+  "spec":{"template":{"spec":{
+    "affinity":{"nodeAffinity":{"preferredDuringSchedulingIgnoredDuringExecution":[
+      {"weight":100,
+       "preference":{"matchExpressions":[{"key":"kubernetes.io/hostname","operator":"In","values":["kevin-intel-manager"]}]}}
+    ]}}
+  }}}
+}'
+
+kubectl -n calico-system patch deploy calico-typha -p '{
+  "spec":{"template":{"spec":{
+    "affinity":{"nodeAffinity":{"preferredDuringSchedulingIgnoredDuringExecution":[
+      {"weight":100,
+       "preference":{"matchExpressions":[{"key":"kubernetes.io/hostname","operator":"In","values":["kevin-intel-manager"]}]}}
+    ]}}
+  }}}
+}'
+
+kubectl -n calico-system rollout restart deploy/calico-kube-controllers
+kubectl -n calico-system rollout restart deploy/calico-typha
+
 
 # CNI (Container Network Interface), manager only
 kubectl create -f https://docs.tigera.io/manifests/tigera-operator.yaml
@@ -115,7 +152,8 @@ sudo kubeadm join <CONTROL_PLANE_IP>:6443 \
   --token <token> \
   --discovery-token-ca-cert-hash sha256:<hash>
 
-sudo kubeadm join 10.191.130.198:6443 --token 6sz2tz.jdmnzgrpf9cr3yem --discovery-token-ca-cert-hash sha256:b36f08e50ec47fcb306c062eb71b258020c865b40219000337a08e6c0fe1fb96
+sudo kubeadm join 10.52.2.226:6443 --token okrufi.qiofuw6r9oql8ttx \
+	--discovery-token-ca-cert-hash sha256:653e5e22d1adc00a96987986caa502a3d36f5643a61646ab1a70a62c2a1b23fd
 
 # mgr smoke test
 kubectl get nodes
