@@ -64,11 +64,13 @@ sudo firewall-cmd --add-port=4789/udp --permanent         # VXLAN
 # sudo firewall-cmd --add-port=179/tcp --permanent
 
 # Flannel (VXLAN):
-# sudo firewall-cmd --add-port=8472/udp --permanent
+sudo firewall-cmd --add-port=8472/udp --permanent
+
+sudo firewall-cmd --set-default-zone=public
+sudo firewall-cmd --get-default-zone
+sudo firewall-cmd --zone=public --change-interface=eno1 --permanent
 
 sudo firewall-cmd --reload
-
-
 sudo firewall-cmd --list-all-zones
 
 
@@ -80,14 +82,16 @@ sudo firewall-cmd --add-port=30000-32767/tcp --permanent   # NodePort (optional)
 # Calico VXLAN:
 sudo firewall-cmd --add-port=4789/udp --permanent
 # Flannel VXLAN:
-# sudo firewall-cmd --add-port=8472/udp --permanent
+sudo firewall-cmd --add-port=8472/udp --permanent
 
 sudo firewall-cmd --reload
-
 sudo firewall-cmd --list-all-zones
 
+
 # On k8s-mgr
-sudo kubeadm init --pod-network-cidr=10.52.0.0/16
+sudo kubeadm init \
+  --pod-network-cidr=10.52.0.0/16 \
+  --apiserver-advertise-address=$(hostname -I | awk '{print $1}')
 mkdir -p $HOME/.kube
 sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
@@ -96,11 +100,12 @@ export KUBECONFIG=/etc/kubernetes/admin.conf
 # test
 kubectl get nodes
 
-# CNI, manager only
-curl -fsSL -O https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/calico.yaml
-# replace the default 192.168.0.0/16 pool with 10.52.0.0/16
-sed -i 's#192\.168\.0\.0/16#10.52.0.0/16#g' calico.yaml
-kubectl apply -f calico.yaml
+# CNI (Container Network Interface), manager only
+kubectl create -f https://docs.tigera.io/manifests/tigera-operator.yaml
+kubectl apply  -f calico-vxlan.yaml
+
+kubectl -n calico-system get pods -o wide
+kubectl get nodes -o wide
 
 # create token on manager
 kubeadm token create --print-join-command
@@ -110,8 +115,7 @@ sudo kubeadm join <CONTROL_PLANE_IP>:6443 \
   --token <token> \
   --discovery-token-ca-cert-hash sha256:<hash>
 
-sudo kubeadm join 10.52.2.162:6443 --token 9rxaas.fhuza2ceryz1gru3 \
-        --discovery-token-ca-cert-hash sha256:5f642e1954ab1f8993bac82bb3fd22b7d09023fa86c94b863c7e07188698397d
+kubeadm join 10.191.130.198:6443 --token 6sz2tz.jdmnzgrpf9cr3yem --discovery-token-ca-cert-hash sha256:b36f08e50ec47fcb306c062eb71b258020c865b40219000337a08e6c0fe1fb96
 
 # mgr smoke test
 kubectl get nodes

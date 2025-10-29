@@ -1,0 +1,19 @@
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  kubernetesProvider: ""
+  cni:
+    type: Calico
+  calicoNetwork:
+    bgp: Disabled                    # VXLAN means no node-to-node BGP required
+    nodeAddressAutodetectionV4:
+      interface: "eno1"             # regex allowed, e.g. "en.*"
+    mtu: 0                           # 0 = auto-detect; Calico adjusts for VXLAN overhead
+    ipPools:
+    - cidr: 10.52.0.0/16
+      encapsulation: VXLAN
+      natOutgoing: Enabled
+      blockSize: 26                  # /26 per-node blocks (good default)
+      nodeSelector: all()
