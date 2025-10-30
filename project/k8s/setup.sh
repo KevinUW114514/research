@@ -19,6 +19,7 @@ sudo sysctl --system
 
 
 sudo apt-get update
+sudo apt install net-tools -y
 sudo apt-get install -y containerd
 # Create default config and switch to systemd cgroups
 sudo mkdir -p /etc/containerd
@@ -53,6 +54,8 @@ sudo firewall-cmd --add-port=2379-2380/tcp --permanent    # etcd
 sudo firewall-cmd --add-port=10250/tcp --permanent        # kubelet
 sudo firewall-cmd --add-port=10257/tcp --permanent        # kube-controller-manager
 sudo firewall-cmd --add-port=10259/tcp --permanent        # kube-scheduler
+sudo firewall-cmd --add-port=5473/tcp --permanent        # kube-scheduler
+sudo firewall-cmd --add-port=2049/tcp --permanent        # nfs
 
 # Optional: NodePort range for services you expose that way
 sudo firewall-cmd --add-port=30000-32767/tcp --permanent
@@ -68,7 +71,7 @@ sudo firewall-cmd --add-port=8472/udp --permanent
 
 sudo firewall-cmd --set-default-zone=public
 sudo firewall-cmd --get-default-zone
-sudo firewall-cmd --zone=public --change-interface=eno1 --permanent
+sudo firewall-cmd --zone=public --change-interface=eno1np0 --permanent
 
 sudo firewall-cmd --reload
 sudo firewall-cmd --list-all-zones
@@ -83,7 +86,7 @@ sudo firewall-cmd --add-port=30000-32767/tcp --permanent   # NodePort (optional)
 sudo firewall-cmd --add-port=4789/udp --permanent
 # Flannel VXLAN:
 sudo firewall-cmd --add-port=8472/udp --permanent
-sudo firewall-cmd --zone=public --change-interface=eno2np1 --permanent
+sudo firewall-cmd --zone=public --change-interface=enp161s0f0 --permanent
 
 sudo firewall-cmd --reload
 sudo firewall-cmd --list-all-zones
@@ -152,12 +155,35 @@ sudo kubeadm join <CONTROL_PLANE_IP>:6443 \
   --token <token> \
   --discovery-token-ca-cert-hash sha256:<hash>
 
-sudo kubeadm join 10.52.2.226:6443 --token okrufi.qiofuw6r9oql8ttx \
-	--discovery-token-ca-cert-hash sha256:653e5e22d1adc00a96987986caa502a3d36f5643a61646ab1a70a62c2a1b23fd
+sudo kubeadm join 10.52.2.226:6443 --token yw9st9.4ucool0bcphkyg1m \
+        --discovery-token-ca-cert-hash sha256:20c306f4c684f7f502ee3fb396e42aab0f18a7fc7a3221aa937665b2f0b53a6d 
 
 # mgr smoke test
 kubectl get nodes
 kubectl get pods -A
+
+sudo mkdir -p /srv/nfs/k8s
+# Give your app's UID/GID or just open up initially for testing
+sudo chown 1000:1000 /srv/nfs/k8s    # adjust to your app UID/GID
+# Install NFS server
+# Ubuntu/Debian:
+sudo apt-get update && sudo apt-get install -y nfs-kernel-server
+# RHEL/CentOS/Rocky:
+# sudo dnf install -y nfs-utils && sudo systemctl enable --now nfs-server
+
+# Export the path (all cluster nodes allowed). Harden as desired.
+echo "/srv/nfs/k8s *(rw,sync,no_subtree_check,no_root_squash)" | sudo tee -a /etc/exports
+sudo exportfs -ra
+
+kubectl apply -f storage.yaml
+
+kubectl get pv
+kubectl get pvc
+
+kubectl apply -f pvc-test.yaml
+kubectl get pods -o wide
+kubectl get pods
+
 
 wget https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz
 tar -xzvf helm-v3.19.0-linux-amd64.tar.gz

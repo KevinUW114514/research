@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: shared-rwx
+  namespace: default      # or whatever namespace your app lives in
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: ""     # static binding; no dynamic provisioner
+  selector:
+    matchLabels:
+      storage: nfs-manager

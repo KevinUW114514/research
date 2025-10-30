@@ -1,28 +1,16 @@
-# pvc-test.yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: pvc-test
-spec:
-  accessModes: ["ReadWriteOnce"]
-  resources:
-    requests:
-      storage: 1Gi
-  storageClassName: local-path
----
 apiVersion: v1
 kind: Pod
 metadata:
-  name: pvc-tester
+  name: nfs-test
 spec:
   containers:
-  - name: sh
-    image: busybox
-    command: ["sh","-c","echo hello > /data/hello && sleep 3600"]
-    volumeMounts:
-    - name: data
-      mountPath: /data
+    - name: writer
+      image: busybox
+      command: ["sh", "-c", "echo hello-from-$(hostname) > /data/hello.txt && sleep 3600"]
+      volumeMounts:
+        - name: data
+          mountPath: /data
   volumes:
-  - name: data
-    persistentVolumeClaim:
-      claimName: pvc-test
+    - name: data
+      persistentVolumeClaim:
+        claimName: shared-rwx

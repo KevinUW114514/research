@@ -7,13 +7,14 @@ spec:
   cni:
     type: Calico
   calicoNetwork:
-    bgp: Disabled                    # VXLAN means no node-to-node BGP required
+    bgp: Disabled
     nodeAddressAutodetectionV4:
-      interface: "eno1"             # regex allowed, e.g. "en.*"
-    mtu: 0                           # 0 = auto-detect; Calico adjusts for VXLAN overhead
+      cidrs:
+        - "10.52.0.0/16"      # <- choose the node's IP in this underlay
+    mtu: 0                     # auto; Calico adjusts for VXLAN overhead
     ipPools:
     - cidr: 10.114.0.0/16
       encapsulation: VXLAN
       natOutgoing: Enabled
-      blockSize: 26                  # /26 per-node blocks (good default)
+      blockSize: 26
       nodeSelector: all()
